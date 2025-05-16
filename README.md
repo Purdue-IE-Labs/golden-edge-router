@@ -17,3 +17,7 @@ DOCKER_INFLUXDB_INIT_BUCKET="meta"
 DOCKER_INFLUXDB_TOKEN="..."
 ```
 See [influxdb documentation](https://github.com/docker-library/docs/blob/master/influxdb/README.md) for more information on the `.env` file.
+
+# Running
+After generating an influxdb token and filling out `./config/zenoh-docker.json5` along with `.env`, simply run `docker compose up` in the 
+root of this project.
