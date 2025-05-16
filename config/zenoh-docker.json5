@@ -1,0 +1,107 @@
+// for running zenohd in a docker container
+{
+  metadata: {
+    name: "zenoh router",
+    location: "build at scale",
+  },
+  adminspace: {
+    enabled: true,
+    permissions: {
+      read: true,
+      write: false
+    }
+  },
+  mode: "router",
+  scouting: {
+    // we disable multicasting and gossip because 
+    // we want well-defined, specified connections rather 
+    // than ad-hoc discovering of nodes on the network
+    multicast: {
+      enabled: false,
+    },
+    gossip: {
+      enabled: false,
+    }
+  },
+  listen: {
+    // specify which endpoints are allowed to connect to this router
+  },
+  plugins: {
+    storage_manager: {
+      __required__: true,
+      // this makes it so that it searches for the backend files in ./config
+      backend_search_dirs: "./config/",
+      volumes: {
+        influxdb2: {
+          url: "http://influxdb2:8086/api/v2/",
+          private: {
+            org_id: "ielabs",
+            token: "...", // replace with influxdb token
+          }
+        }
+      },
+      storages: {
+        model: {
+          key_expr: "MODELS/**",
+          volume: {
+            id: "influxdb2",
+            db: "model",
+            // TODO: this actually gives a cryptic error if 
+            // we let zenoh try to automatically create the db in influx
+            // so what I have been having to do is go into the ui of influx
+            // and manually create all these databases before starting 
+            // up the zenoh container
+            create_db: true,
+          }
+        },
+        meta: {
+          key_expr: "**/NODE/*/META",
+          volume: {
+            id: "influxdb2",
+            db: "meta",
+            create_db: true,
+          }
+        },
+        state: {
+          key_expr: "**/NODE/*/STATE",
+          volume: {
+            id: "influxdb2",
+            db: "state",
+            create_db: true,
+          }
+        },
+        tag_data: {
+          key_expr: "**/NODE/*/TAGS/DATA/**",
+          volume: {
+            id: "influxdb2",
+            db: "tag_data",
+            create_db: true,
+          }
+        },
+        tag_write: {
+          key_expr: "**/NODE/*/TAGS/WRITE/**",
+          volume: {
+            id: "influxdb2",
+            db: "tag_write",
+            create_db: true,
+          }
+        },
+        // TODO: methods are actually gross under the hood, should we 
+        // create some sort of hook that cleans up a method call to put 
+        // into influxdb or let future people look into that
+        method: {
+          key_expr: "**/NODE/*/METHODS/**",
+          volume: {
+            id: "influxdb2",
+            db: "method",
+            create_db: true,
+          }
+        }
+      }
+    },
+    rest: { 
+      __required__: true,
+      http_port: 8000,
+    }
+  },
+}

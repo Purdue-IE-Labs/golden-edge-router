@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  influxdb2:
+    env_file: ".env"
+    image: influxdb:2
+    container_name: influxdb2-router2
+    ports:
+      - "8086:8086"
+    volumes:
+      - influxdb2-data:/var/lib/influxdb2
+      - influxdb2-config:/etc/influxdb2
+    restart: unless-stopped
+    networks:
+      - gedge-router
+    # ran into a race condition where the influxdb container would 
+    # start first but wasn't quite ready, so the zenohd instance 
+    # would try to ping it prematurely, so we add this healthcheck
+    # to ensure that the influxdb container is working properly 
+    # before initializing the zenoh container
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/ready"]
+      interval: 5s
+      timeout: 2s
+      retries: 12
+
+  zenoh:
+    image: eclipse/zenoh
+    container_name: zenoh-router2
+    init: true
+    ports:
+      - "7447:7447/tcp"
+      - "8000:8000/tcp"
+    volumes:
+      - ./config/zenoh-docker.json5:/zenoh-docker.json5
+      - ./config/:/config
+    command: ["-c", "/zenoh-docker.json5"]
+    restart: unless-stopped
+    depends_on:
+      influxdb2:
+        condition: service_healthy
+    networks:
+      - gedge-router
+    environment:
+      # the most verbose log level for debugging
+      - RUST_LOG=trace
+
+volumes:
+  influxdb2-data:
+  influxdb2-config:
+
+networks:
+  # a custom network for these two containers to communicate
+  gedge-router:
+    driver: bridge
